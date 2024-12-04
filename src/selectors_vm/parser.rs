@@ -2,8 +2,8 @@ use super::SelectorError;
 use crate::html::Namespace;
 use cssparser::{Parser as CssParser, ParserInput, ToCss};
 use selectors::parser::{
-    Combinator, Component, NonTSPseudoClass, Parser, PseudoElement, SelectorImpl, SelectorList,
-    SelectorParseErrorKind,
+    Combinator, Component, NonTSPseudoClass, ParseRelative, Parser, PseudoElement, SelectorImpl,
+    SelectorList, SelectorParseErrorKind,
 };
 use std::fmt;
 use std::str::FromStr;
@@ -38,7 +38,7 @@ impl SelectorImpl for SelectorImplDescriptor {
     type NonTSPseudoClass = NonTSPseudoClassStub;
     type PseudoElement = PseudoElementStub;
 
-    type ExtraMatchingData = ();
+    type ExtraMatchingData<'a> = std::marker::PhantomData<&'a ()>;
 }
 
 #[derive(PartialEq, Eq, Clone, Debug, Hash)]
@@ -111,10 +111,8 @@ impl SelectorsParser {
             | Component::ExplicitNoNamespace
             | Component::ID(_)
             | Component::Class(_)
-            | Component::FirstChild
-            | Component::NthChild(_, _)
-            | Component::FirstOfType
-            | Component::NthOfType(_, _)
+            | Component::Nth(_)
+            | Component::NthOf(_)
             | Component::AttributeInNoNamespaceExists { .. }
             | Component::AttributeInNoNamespace { .. } => Ok(()),
 
@@ -127,12 +125,9 @@ impl SelectorsParser {
             | Component::Part(_)
             | Component::Host(_)
             | Component::Is(_)
-            | Component::LastChild
-            | Component::LastOfType
-            | Component::NthLastChild(_, _)
-            | Component::NthLastOfType(_, _)
-            | Component::OnlyChild
-            | Component::OnlyOfType
+            | Component::ParentSelector
+            | Component::Has(_)
+            | Component::RelativeSelectorAnchor
             | Component::Root
             | Component::Scope
             | Component::Where(_)
@@ -163,7 +158,7 @@ impl SelectorsParser {
         let mut input = ParserInput::new(selector);
         let mut css_parser = CssParser::new(&mut input);
 
-        SelectorList::parse(&Self, &mut css_parser)
+        SelectorList::parse(&Self, &mut css_parser, ParseRelative::No)
             .map_err(SelectorError::from)
             .and_then(Self::validate)
     }

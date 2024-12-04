@@ -1,4 +1,4 @@
-use super::ast::NthChild;
+use super::ast::Nth;
 use super::program::AddressRange;
 use super::SelectorState;
 use crate::html::{LocalName, Namespace, Tag};
@@ -68,7 +68,7 @@ impl ChildCounter {
 
     #[inline]
     #[must_use]
-    pub const fn is_nth(&self, nth: NthChild) -> bool {
+    pub const fn is_nth(&self, nth: Nth) -> bool {
         nth.has_index(self.cumulative)
     }
 }

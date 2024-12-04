@@ -6,19 +6,12 @@ use std::fmt::{self, Debug, Formatter};
 use std::hash::Hash;
 
 #[derive(PartialEq, Eq, Debug, Copy, Clone)]
-pub(crate) struct NthChild {
+pub(crate) struct Nth {
     step: i32,
     offset: i32,
 }
 
-impl NthChild {
-    /// A first child with a step of 0 and an offset of 1
-    #[inline]
-    #[must_use]
-    pub const fn first() -> Self {
-        Self::new(0, 1)
-    }
-
+impl Nth {
     #[inline]
     #[must_use]
     pub const fn new(step: i32, offset: i32) -> Self {
@@ -50,8 +43,8 @@ pub(crate) enum OnTagNameExpr {
     ExplicitAny,
     Unmatchable,
     LocalName(Box<str>),
-    NthChild(NthChild),
-    NthOfType(NthChild),
+    Nth(Nth),
+    NthOf(Nth),
 }
 
 #[derive(Eq, PartialEq)]
@@ -138,29 +131,21 @@ impl From<&Component<SelectorImplDescriptor>> for Condition {
                 ref value,
                 operator,
                 case_sensitivity,
-                never_matches,
-            } => {
-                if never_matches {
-                    Self::OnTagName(OnTagNameExpr::Unmatchable)
-                } else {
-                    Self::OnAttributes(OnAttributesExpr::AttributeComparisonExpr(
-                        AttributeComparisonExpr::new(
-                            local_name.0.to_owned(),
-                            value.0.to_owned(),
-                            case_sensitivity,
-                            operator,
-                        ),
-                    ))
-                }
+            } => Self::OnAttributes(OnAttributesExpr::AttributeComparisonExpr(
+                AttributeComparisonExpr::new(
+                    local_name.0.to_owned(),
+                    value.0.to_owned(),
+                    case_sensitivity,
+                    operator,
+                ),
+            )),
+            &Component::Nth(nth_data) => {
+                Self::OnTagName(OnTagNameExpr::Nth(Nth::new(nth_data.a, nth_data.b)))
             }
-            Component::FirstChild => Self::OnTagName(OnTagNameExpr::NthChild(NthChild::first())),
-            &Component::NthChild(a, b) => {
-                Self::OnTagName(OnTagNameExpr::NthChild(NthChild::new(a, b)))
-            }
-            Component::FirstOfType => Self::OnTagName(OnTagNameExpr::NthOfType(NthChild::first())),
-            &Component::NthOfType(a, b) => {
-                Self::OnTagName(OnTagNameExpr::NthOfType(NthChild::new(a, b)))
-            }
+            &Component::NthOf(ref nth_of_data) => Self::OnTagName(OnTagNameExpr::NthOf(Nth::new(
+                nth_of_data.nth_data().a,
+                nth_of_data.nth_data().b,
+            ))),
             // NOTE: the rest of the components are explicit namespace or
             // pseudo class-related. Ideally none of them should appear in
             // the parsed selector as we should bail earlier in the parser.
@@ -859,17 +844,10 @@ mod tests {
             ":invalid",
             ":is(header)",
             ":lang(en)",
-            ":last-child",
-            ":last-of-type",
             ":left",
             ":link",
             ":local-link",
             ":nth-col(1)",
-            ":nth-last-child(1)",
-            ":nth-last-col(1)",
-            ":nth-last-of-type(1)",
-            ":only-child",
-            ":only-of-type",
             ":optional",
             ":out-of-range",
             ":past",
@@ -914,23 +892,23 @@ mod tests {
     #[test]
     fn negated_pseudo_class_parse_error() {
         assert_err(
-            ":not(:nth-last-child(even))",
+            ":not(:nth(even))",
             SelectorError::UnsupportedPseudoClassOrElement,
         );
     }
 
     #[test]
     fn nth_child_is_index() {
-        let even = NthChild::new(2, 0);
+        let even = Nth::new(2, 0);
         assert!(even.has_index(2));
         assert!(!even.has_index(1));
 
-        let odd = NthChild::new(2, 1);
+        let odd = Nth::new(2, 1);
         assert!(odd.has_index(1));
         assert!(!odd.has_index(2));
         assert!(odd.has_index(3));
 
-        let first = NthChild::first();
+        let first = Nth::new(0, 1);
         assert!(first.has_index(1));
         assert!(!first.has_index(2));
         assert!(!first.has_index(3));

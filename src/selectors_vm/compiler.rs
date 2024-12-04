@@ -73,10 +73,10 @@ impl Compilable for Expr<OnTagNameExpr> {
                     Err(_) => self.compile_expr(|_, _| false),
                 }
             }
-            &OnTagNameExpr::NthChild(nth) => {
+            &OnTagNameExpr::Nth(nth) => {
                 self.compile_expr(move |state, _| state.cumulative.is_nth(nth))
             }
-            &OnTagNameExpr::NthOfType(nth) => {
+            &OnTagNameExpr::NthOf(nth) => {
                 *enable_nth_of_type = true;
                 self.compile_expr(move |state, _| {
                     state
